@@ -238,9 +238,24 @@ class ServerlessNext {
   };
 
   build = async (watch?: boolean): Promise<void> => {
-    const build = await import("next/dist/build").then((m) => m.default);
+    const build = await import("next/dist/build")
+      .then((m) => m.default)
+      .catch((e) => {
+        throw new Error(
+          `Failed to import next/dist/build: ${e.message}. Is \`next\` installed as a dependency?`
+        );
+      });
 
-    console.log("!!! build fn", build);
+    await build(
+      this.workdir,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      "default"
+    );
 
     if (watch) {
       const paths = [
