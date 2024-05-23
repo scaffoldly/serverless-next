@@ -217,7 +217,7 @@ class ServerlessNext {
 
     const pluginHooks = this.pluginConfig.hooks || {};
 
-    Object.entries(pluginHooks).forEach(([hook, target]) => {
+    Object.entries(pluginHooks).forEach(([hook, _target]) => {
       if (hook === `${PLUGIN_NAME}:build`) {
         this.log.warning(
           `Hook "${hook}" is reserved for the "${PLUGIN_NAME}" plugin. Use \`before:${hook}\` or \`after:${hook}\` instead.`
