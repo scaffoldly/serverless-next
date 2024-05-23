@@ -1,0 +1,30 @@
+{
+  "name": "serverless-next",
+  "version": "1.0.2",
+  "engines": {
+    "node": ">=18"
+  },
+  "description": "Serverless NextJS Plugin",
+  "author": "scaffold.ly",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scaffoldly/serverless-next"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "postinstall": "yarn build"
+  },
+  "dependencies": {
+    "@types/node": "16",
+    "@types/which": "3",
+    "chokidar": "3",
+    "typescript": "5",
+    "which": "4"
+  },
+  "peerDependencies": {
+    "serverless": ">=3.0.0"
+  },
+  "devDependencies": {}
+}
