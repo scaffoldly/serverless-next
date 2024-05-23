@@ -1,6 +1,5 @@
 import "path";
 import { exit } from "process";
-import { exec } from "./exec";
 import path from "path";
 import { watch as chokidar } from "chokidar";
 
@@ -226,11 +225,7 @@ class ServerlessNext {
         return;
       }
       hooks[hook] = async () => {
-        await exec(
-          ["echo", `"Not implemented: ${target}"`],
-          this.workdir,
-          this.environment
-        );
+        throw new Error(`Hook "${hook}" is not implemented yet.`);
       };
     });
 
