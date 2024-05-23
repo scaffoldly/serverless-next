@@ -238,9 +238,9 @@ class ServerlessNext {
   };
 
   build = async (watch?: boolean): Promise<void> => {
-    if (true === true) {
-      throw new Error("Not implemented");
-    }
+    const build = await import("next/dist/build").then((m) => m.default);
+
+    console.log("!!! build fn", build);
 
     if (watch) {
       const paths = [

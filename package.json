@@ -24,7 +24,10 @@
     "which": "4"
   },
   "peerDependencies": {
-    "serverless": ">=3.0.0"
+    "serverless": ">=3.0.0",
+    "next": "^14"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "next": "^14.2.3"
+  }
 }
