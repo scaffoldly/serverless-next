@@ -18,14 +18,14 @@
   },
   "dependencies": {
     "@types/node": "16",
-    "@types/which": "3",
+    "axios": "^1.7.2",
     "chokidar": "3",
-    "typescript": "5",
-    "which": "4"
+    "portfinder": "^1.0.32",
+    "typescript": "5"
   },
   "peerDependencies": {
-    "serverless": ">=3.0.0",
-    "next": "^14"
+    "next": "^14",
+    "serverless": ">=3.0.0"
   },
   "devDependencies": {
     "next": "^14.2.3"
