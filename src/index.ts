@@ -1,7 +1,7 @@
 import "path";
 import { exit } from "process";
-import path from "path";
-import { watch as chokidar } from "chokidar";
+// import path from "path";
+// import { watch as chokidar } from "chokidar";
 import portfinder from "portfinder";
 
 type PluginName = "next";
@@ -173,7 +173,7 @@ class ServerlessNext {
       initialize: async () => {},
       [`${PLUGIN_NAME}:build`]: async () => {
         this.log.log(`!!! ${PLUGIN_NAME}:build`);
-        await this.build(false);
+        // await this.build(false);
       },
       [`before:${PLUGIN_NAME}:build`]: async () => {
         this.log.log(`!!! before:${PLUGIN_NAME}:build`);
@@ -185,7 +185,8 @@ class ServerlessNext {
         this.log.log("!!! before:offline:start");
         let errored = false;
         try {
-          await this.build(this.pluginConfig.reloadHandler);
+          // TODO: check offline.useDocker option
+          await this.run(this.pluginConfig.reloadHandler);
         } catch (e) {
           errored = true;
           if (e instanceof Error) {
@@ -201,7 +202,7 @@ class ServerlessNext {
         this.log.log("!!! before:package:createDeploymentArtifacts");
         let errored = false;
         try {
-          await this.build(false);
+          await this.build();
         } catch (e) {
           errored = true;
           if (e instanceof Error) {
@@ -233,80 +234,81 @@ class ServerlessNext {
     return hooks;
   };
 
-  build = async (watch?: boolean): Promise<void> => {
-    if (!watch) {
-      const build = await import("next/dist/build")
-        .then((m) => m.default)
-        .catch((e) => {
-          throw new Error(
-            `Failed to import next/dist/build: ${e.message}. Is \`next\` installed as a dependency?`
-          );
-        });
-
-      await build(
-        this.workdir,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        "default"
-      );
-    }
-
-    if (watch) {
-      const { startServer } = await import("next/dist/server/lib/start-server")
-        .then((m) => m.default)
-        .catch((e) => {
-          throw new Error(
-            `Failed to import next/dist/server: ${e.message}. Is \`next\` installed as a dependency?`
-          );
-        });
-
-      const port = await portfinder.getPortPromise({ startPort: 12000 });
-
-      await startServer({
-        dir: this.workdir,
-        isDev: true,
-        port,
-        allowRetry: undefined,
-        customServer: undefined,
-        hostname: undefined,
-        keepAliveTimeout: undefined,
-        minimalMode: undefined,
-        selfSignedCertificate: undefined,
+  build = async (): Promise<void> => {
+    const build = await import("next/dist/build")
+      .then((m) => m.default)
+      .catch((e) => {
+        throw new Error(
+          `Failed to import next/dist/build: ${e.message}. Is \`next\` installed as a dependency?`
+        );
       });
 
-      const paths = [
-        ...(this.pluginConfig.watch || []).map((p) =>
-          path.join(this.workdir, p)
-        ),
-      ];
+    await build(
+      this.workdir,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      "default"
+    );
+  };
 
-      this.log.verbose(
-        `Watching for changes in:\n${paths.map((p) => ` - ${p}`).join(`\n`)}`
-      );
-
-      chokidar(paths, {
-        ignoreInitial: true,
-        usePolling: true,
-        interval: 100,
-        awaitWriteFinish: {
-          stabilityThreshold: 500,
-          pollInterval: 100,
-        },
-      }).on("all", async () => {
-        this.log.log("Change detected, rebuilding...");
-        try {
-          await this.build(false);
-        } catch (e) {
-          if (e instanceof Error) {
-            this.log.error(e.message);
-          }
-        }
+  run = async (watch?: boolean): Promise<void> => {
+    const { startServer } = await import("next/dist/server/lib/start-server")
+      .then((m) => m.default)
+      .catch((e) => {
+        throw new Error(
+          `Failed to import next/dist/server: ${e.message}. Is \`next\` installed as a dependency?`
+        );
       });
+
+    const port = await portfinder.getPortPromise({ startPort: 12000 });
+
+    await startServer({
+      dir: this.workdir,
+      isDev: true,
+      port,
+      allowRetry: undefined,
+      customServer: undefined,
+      hostname: undefined,
+      keepAliveTimeout: undefined,
+      minimalMode: undefined,
+      selfSignedCertificate: undefined,
+    });
+
+    // TODO: Implement watch
+    if (!watch || watch) {
+      return;
     }
+
+    // const paths = [
+    //   ...(this.pluginConfig.watch || []).map((p) => path.join(this.workdir, p)),
+    // ];
+
+    // this.log.verbose(
+    //   `Watching for changes in:\n${paths.map((p) => ` - ${p}`).join(`\n`)}`
+    // );
+
+    // chokidar(paths, {
+    //   ignoreInitial: true,
+    //   usePolling: true,
+    //   interval: 100,
+    //   awaitWriteFinish: {
+    //     stabilityThreshold: 500,
+    //     pollInterval: 100,
+    //   },
+    // }).on("all", async () => {
+    //   this.log.log("Change detected, rebuilding...");
+    //   try {
+    //     await this.run(false);
+    //   } catch (e) {
+    //     if (e instanceof Error) {
+    //       this.log.error(e.message);
+    //     }
+    //   }
+    // });
   };
 }
 
