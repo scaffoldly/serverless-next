@@ -1,15 +1,12 @@
 import "path";
 import { exit } from "process";
-// import path from "path";
-// import { watch as chokidar } from "chokidar";
-import portfinder from "portfinder";
+import { endpointSpawn } from "@scaffoldly/awslambda-bootstrap";
+import { ChildProcess } from "child_process";
 
 type PluginName = "next";
 const PLUGIN_NAME: PluginName = "next";
 
 type PluginConfig = {
-  reloadHandler?: boolean; // Default is false
-  watch?: string[];
   hooks?: {
     [key: string]: string;
   };
@@ -18,8 +15,21 @@ type PluginConfig = {
 type ServerlessCustom = {
   next?: PluginConfig;
   "serverless-offline"?: {
+    useDocker?: boolean;
     location?: string;
   };
+};
+
+type Function = {
+  name: string;
+  handler?: string;
+  image?: FunctionImage;
+  runtime?: string;
+};
+
+type FunctionImage = {
+  name?: string;
+  command?: string | string[];
 };
 
 type ServerlessService = {
@@ -29,10 +39,8 @@ type ServerlessService = {
     stage: string;
     environment?: { [key: string]: string };
   };
-  getAllFunctions: () => string[];
-  getFunction: (functionName: string) => {
-    name: string;
-    events?: any[];
+  functions?: {
+    next?: Function;
   };
 };
 
@@ -127,10 +135,16 @@ class ServerlessNext {
   serverlessConfig: ServerlessConfig;
   pluginConfig: PluginConfig;
 
+  childProcess?: ChildProcess;
+  childProcessCommand: string;
+
   hooks?: Hooks;
   commands?: Commands;
 
-  constructor(serverless: Serverless, protected options: Options) {
+  constructor(
+    serverless: Serverless,
+    protected options: Options
+  ) {
     this.serverless = serverless;
     this.serverlessConfig = serverless.config;
     this.pluginConfig =
@@ -141,6 +155,16 @@ class ServerlessNext {
     this.log = new Log(options);
 
     this.hooks = this.setupHooks();
+
+    let childProcessCommand =
+      this.serverless.service.functions?.next?.image?.command;
+    if (!childProcessCommand) {
+      throw new Error("missing `image.commad` on `next` function");
+    }
+    if (Array.isArray(childProcessCommand)) {
+      childProcessCommand = childProcessCommand.join(" ");
+    }
+    this.childProcessCommand = childProcessCommand;
 
     this.commands = {
       [`${PLUGIN_NAME}`]: {
@@ -156,7 +180,7 @@ class ServerlessNext {
     };
   }
 
-  get environment(): { [key: string]: string | undefined } {
+  get environment(): NodeJS.ProcessEnv {
     return {
       ...(process.env || {}),
       ...((((this.serverless || {}).service || {}).provider || {})
@@ -166,6 +190,19 @@ class ServerlessNext {
 
   get workdir(): string {
     return this.serverlessConfig.servicePath;
+  }
+
+  get useDocker(): boolean {
+    const custom = this.serverless.service.custom || {};
+    const serverlessOffline = custom["serverless-offline"];
+
+    if (!serverlessOffline) {
+      throw new Error(
+        "This plugin only supports serverless-offline for local execution. Is it installed?"
+      );
+    }
+
+    return serverlessOffline.useDocker || false;
   }
 
   setupHooks = () => {
@@ -185,8 +222,7 @@ class ServerlessNext {
         this.log.log("!!! before:offline:start");
         let errored = false;
         try {
-          // TODO: check offline.useDocker option
-          await this.run(this.pluginConfig.reloadHandler);
+          await this.run();
         } catch (e) {
           errored = true;
           if (e instanceof Error) {
@@ -255,60 +291,33 @@ class ServerlessNext {
     );
   };
 
-  run = async (watch?: boolean): Promise<void> => {
-    const { startServer } = await import("next/dist/server/lib/start-server")
-      .then((m) => m.default)
-      .catch((e) => {
-        throw new Error(
-          `Failed to import next/dist/server: ${e.message}. Is \`next\` installed as a dependency?`
-        );
-      });
-
-    const port = await portfinder.getPortPromise({ startPort: 12000 });
-
-    await startServer({
-      dir: this.workdir,
-      isDev: true,
-      port,
-      allowRetry: undefined,
-      customServer: undefined,
-      hostname: undefined,
-      keepAliveTimeout: undefined,
-      minimalMode: undefined,
-      selfSignedCertificate: undefined,
-    });
-
-    // TODO: Implement watch
-    if (!watch || watch) {
-      return;
+  run = async (): Promise<void> => {
+    if (this.useDocker) {
+      throw new Error("Not implemented: useDocker");
     }
 
-    // const paths = [
-    //   ...(this.pluginConfig.watch || []).map((p) => path.join(this.workdir, p)),
-    // ];
+    const { next } = this.serverless.service.functions || {};
+    if (!next) {
+      throw new Error(
+        `Unable to find a function named \`next\` in serverless config.`
+      );
+    }
 
-    // this.log.verbose(
-    //   `Watching for changes in:\n${paths.map((p) => ` - ${p}`).join(`\n`)}`
-    // );
+    let spawnCommand = this.childProcessCommand.replace(
+      "next start@",
+      "next dev@"
+    );
 
-    // chokidar(paths, {
-    //   ignoreInitial: true,
-    //   usePolling: true,
-    //   interval: 100,
-    //   awaitWriteFinish: {
-    //     stabilityThreshold: 500,
-    //     pollInterval: 100,
-    //   },
-    // }).on("all", async () => {
-    //   this.log.log("Change detected, rebuilding...");
-    //   try {
-    //     await this.run(false);
-    //   } catch (e) {
-    //     if (e instanceof Error) {
-    //       this.log.error(e.message);
-    //     }
-    //   }
-    // });
+    const { childProcess } = await endpointSpawn(
+      spawnCommand,
+      this.environment
+    );
+    this.childProcess = childProcess;
+
+    let handler = spawnCommand.split("@").slice(1).join("@");
+
+    delete next.image;
+    next.handler = handler;
   };
 }
 

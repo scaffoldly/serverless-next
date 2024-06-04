@@ -17,11 +17,9 @@
     "postinstall": "yarn build"
   },
   "dependencies": {
-    "@scaffoldly/awslambda-bootstrap": "^1.0.10",
+    "@scaffoldly/awslambda-bootstrap": "^1.0.11",
     "@types/node": "16",
     "axios": "^1.7.2",
-    "chokidar": "3",
-    "portfinder": "^1.0.32",
     "typescript": "5"
   },
   "peerDependencies": {
