@@ -17,14 +17,16 @@
     "postinstall": "yarn build"
   },
   "dependencies": {
+    "@scaffoldly/awslambda-bootstrap": "^1.0.11",
     "@types/node": "16",
-    "@types/which": "3",
-    "chokidar": "3",
-    "typescript": "5",
-    "which": "4"
+    "axios": "^1.7.2",
+    "typescript": "5"
   },
   "peerDependencies": {
+    "next": "^14",
     "serverless": ">=3.0.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "next": "^14.2.3"
+  }
 }

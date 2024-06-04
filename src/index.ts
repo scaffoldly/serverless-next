@@ -1,15 +1,12 @@
 import "path";
 import { exit } from "process";
-import { exec } from "./exec";
-import path from "path";
-import { watch as chokidar } from "chokidar";
+import { endpointSpawn } from "@scaffoldly/awslambda-bootstrap";
+import { ChildProcess } from "child_process";
 
 type PluginName = "next";
 const PLUGIN_NAME: PluginName = "next";
 
 type PluginConfig = {
-  reloadHandler?: boolean; // Default is false
-  watch?: string[];
   hooks?: {
     [key: string]: string;
   };
@@ -18,8 +15,21 @@ type PluginConfig = {
 type ServerlessCustom = {
   next?: PluginConfig;
   "serverless-offline"?: {
+    useDocker?: boolean;
     location?: string;
   };
+};
+
+type Function = {
+  name: string;
+  handler?: string;
+  image?: FunctionImage;
+  runtime?: string;
+};
+
+type FunctionImage = {
+  name?: string;
+  command?: string | string[];
 };
 
 type ServerlessService = {
@@ -29,10 +39,8 @@ type ServerlessService = {
     stage: string;
     environment?: { [key: string]: string };
   };
-  getAllFunctions: () => string[];
-  getFunction: (functionName: string) => {
-    name: string;
-    events?: any[];
+  functions?: {
+    next?: Function;
   };
 };
 
@@ -127,10 +135,16 @@ class ServerlessNext {
   serverlessConfig: ServerlessConfig;
   pluginConfig: PluginConfig;
 
+  childProcess?: ChildProcess;
+  childProcessCommand: string;
+
   hooks?: Hooks;
   commands?: Commands;
 
-  constructor(serverless: Serverless, protected options: Options) {
+  constructor(
+    serverless: Serverless,
+    protected options: Options
+  ) {
     this.serverless = serverless;
     this.serverlessConfig = serverless.config;
     this.pluginConfig =
@@ -141,6 +155,16 @@ class ServerlessNext {
     this.log = new Log(options);
 
     this.hooks = this.setupHooks();
+
+    let childProcessCommand =
+      this.serverless.service.functions?.next?.image?.command;
+    if (!childProcessCommand) {
+      throw new Error("missing `image.commad` on `next` function");
+    }
+    if (Array.isArray(childProcessCommand)) {
+      childProcessCommand = childProcessCommand.join(" ");
+    }
+    this.childProcessCommand = childProcessCommand;
 
     this.commands = {
       [`${PLUGIN_NAME}`]: {
@@ -156,7 +180,7 @@ class ServerlessNext {
     };
   }
 
-  get environment(): { [key: string]: string | undefined } {
+  get environment(): NodeJS.ProcessEnv {
     return {
       ...(process.env || {}),
       ...((((this.serverless || {}).service || {}).provider || {})
@@ -168,24 +192,37 @@ class ServerlessNext {
     return this.serverlessConfig.servicePath;
   }
 
+  get useDocker(): boolean {
+    const custom = this.serverless.service.custom || {};
+    const serverlessOffline = custom["serverless-offline"];
+
+    if (!serverlessOffline) {
+      throw new Error(
+        "This plugin only supports serverless-offline for local execution. Is it installed?"
+      );
+    }
+
+    return serverlessOffline.useDocker || false;
+  }
+
   setupHooks = () => {
     const hooks: Hooks = {
       initialize: async () => {},
       [`${PLUGIN_NAME}:build`]: async () => {
-        this.log.verbose(`${PLUGIN_NAME}:build`);
-        await this.build(false);
+        this.log.log(`!!! ${PLUGIN_NAME}:build`);
+        // await this.build(false);
       },
       [`before:${PLUGIN_NAME}:build`]: async () => {
-        this.log.verbose(`before:${PLUGIN_NAME}:build`);
+        this.log.log(`!!! before:${PLUGIN_NAME}:build`);
       },
       [`after:${PLUGIN_NAME}:build`]: async () => {
-        this.log.verbose(`after:${PLUGIN_NAME}:build`);
+        this.log.log(`!!! after:${PLUGIN_NAME}:build`);
       },
       "before:offline:start": async () => {
-        this.log.verbose("before:offline:start");
+        this.log.log("!!! before:offline:start");
         let errored = false;
         try {
-          await this.build(this.pluginConfig.reloadHandler);
+          await this.run();
         } catch (e) {
           errored = true;
           if (e instanceof Error) {
@@ -198,10 +235,10 @@ class ServerlessNext {
         }
       },
       "before:package:createDeploymentArtifacts": async () => {
-        this.log.verbose("before:package:createDeploymentArtifacts");
+        this.log.log("!!! before:package:createDeploymentArtifacts");
         let errored = false;
         try {
-          await this.build(false);
+          await this.build();
         } catch (e) {
           errored = true;
           if (e instanceof Error) {
@@ -218,7 +255,7 @@ class ServerlessNext {
 
     const pluginHooks = this.pluginConfig.hooks || {};
 
-    Object.entries(pluginHooks).forEach(([hook, target]) => {
+    Object.entries(pluginHooks).forEach(([hook, _target]) => {
       if (hook === `${PLUGIN_NAME}:build`) {
         this.log.warning(
           `Hook "${hook}" is reserved for the "${PLUGIN_NAME}" plugin. Use \`before:${hook}\` or \`after:${hook}\` instead.`
@@ -226,52 +263,61 @@ class ServerlessNext {
         return;
       }
       hooks[hook] = async () => {
-        await exec(
-          ["echo", `"Not implemented: ${target}"`],
-          this.workdir,
-          this.environment
-        );
+        throw new Error(`Hook "${hook}" is not implemented yet.`);
       };
     });
 
     return hooks;
   };
 
-  build = async (watch?: boolean): Promise<void> => {
-    if (true === true) {
-      throw new Error("Not implemented");
-    }
-
-    if (watch) {
-      const paths = [
-        ...(this.pluginConfig.watch || []).map((p) =>
-          path.join(this.workdir, p)
-        ),
-      ];
-
-      this.log.verbose(
-        `Watching for changes in:\n${paths.map((p) => ` - ${p}`).join(`\n`)}`
-      );
-
-      chokidar(paths, {
-        ignoreInitial: true,
-        usePolling: true,
-        interval: 100,
-        awaitWriteFinish: {
-          stabilityThreshold: 500,
-          pollInterval: 100,
-        },
-      }).on("all", async () => {
-        this.log.log("Change detected, rebuilding...");
-        try {
-          await this.build(false);
-        } catch (e) {
-          if (e instanceof Error) {
-            this.log.error(e.message);
-          }
-        }
+  build = async (): Promise<void> => {
+    const build = await import("next/dist/build")
+      .then((m) => m.default)
+      .catch((e) => {
+        throw new Error(
+          `Failed to import next/dist/build: ${e.message}. Is \`next\` installed as a dependency?`
+        );
       });
+
+    await build(
+      this.workdir,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      "default"
+    );
+  };
+
+  run = async (): Promise<void> => {
+    if (this.useDocker) {
+      throw new Error("Not implemented: useDocker");
     }
+
+    const { next } = this.serverless.service.functions || {};
+    if (!next) {
+      throw new Error(
+        `Unable to find a function named \`next\` in serverless config.`
+      );
+    }
+
+    let spawnCommand = this.childProcessCommand.replace(
+      "next start@",
+      "next dev@"
+    );
+
+    const { childProcess } = await endpointSpawn(
+      spawnCommand,
+      this.environment
+    );
+    this.childProcess = childProcess;
+
+    let handler = spawnCommand.split("@").slice(1).join("@");
+
+    delete next.image;
+    next.handler = handler;
   };
 }
 
