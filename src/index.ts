@@ -251,6 +251,8 @@ class ServerlessNext {
       command = defaultNextFunctionImageCommand(this.pluginConfig);
     }
 
+    console.log("!!! command", command);
+
     if (!command[0].startsWith("next")) {
       throw new Error("Image command must start with `next`");
     }
