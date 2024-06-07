@@ -295,17 +295,12 @@ class ServerlessNext {
     return this.setImageIntent(intent);
   };
 
-  setImageIntent = (intent: Intent): string | undefined => {
+  setImageIntent = (intent: Intent): string => {
     const { next } = this.serverless.service.functions || {};
     if (!next) {
       throw new Error(
         `Unable to find a function named \`next\` in serverless config.`
       );
-    }
-
-    if (intent === "develop" && !this.useDocker) {
-      delete next.image;
-      return;
     }
 
     const { image } = next;
@@ -315,7 +310,14 @@ class ServerlessNext {
       );
     }
 
-    image.command = this.enrichCommandWithIntent(intent, image.command);
+    const { command } = image;
+
+    if (intent === "develop" && !this.useDocker) {
+      delete next.image;
+      return this.enrichCommandWithIntent(intent, command)[0];
+    }
+
+    image.command = this.enrichCommandWithIntent(intent, command);
 
     return image.command[0];
   };
