@@ -7,7 +7,7 @@ export type PluginConfig = {
 
 export type ServerlessFunctionImage = {
   name?: string;
-  command?: string[];
+  command?: string[] | string;
 };
 
 export type ServerlessFunction = {

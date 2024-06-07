@@ -122,7 +122,7 @@ class ServerlessNext {
   pluginConfig: PluginConfig;
 
   childProcess?: ChildProcess;
-  childProcessCommand?: string[];
+  childProcessCommand?: string[] | string;
 
   hooks?: Hooks;
   commands?: Commands;
@@ -246,12 +246,17 @@ class ServerlessNext {
     return hooks;
   };
 
-  enrichCommandWithIntent = (intent: Intent, command?: string[]): string[] => {
+  enrichCommandWithIntent = (
+    intent: Intent,
+    command?: string | string[]
+  ): string[] => {
     if (!command || !command.length) {
       command = defaultNextFunctionImageCommand(this.pluginConfig);
     }
 
-    console.log("!!! command", command);
+    if (typeof command === "string") {
+      command = command.split(" ");
+    }
 
     if (!command[0].startsWith("next")) {
       throw new Error("Image command must start with `next`");
