@@ -104,7 +104,6 @@ class ServerlessNext {
   serverlessConfig: ServerlessConfig;
   pluginConfig: PluginConfig;
 
-  childProcess?: ChildProcess;
   childProcessCommand?: string;
 
   hooks?: Hooks;
@@ -165,6 +164,19 @@ class ServerlessNext {
     }
 
     return serverlessOffline.useDocker || false;
+  }
+
+  set childProcess(childProcess: ChildProcess | undefined) {
+    process.on("SIGINT", () => {
+      if (childProcess) {
+        childProcess.kill("SIGINT");
+      }
+    });
+    process.on("SIGTERM", () => {
+      if (childProcess) {
+        childProcess.kill("SIGTERM");
+      }
+    });
   }
 
   setupHooks = () => {
@@ -231,6 +243,16 @@ class ServerlessNext {
 
     return hooks;
   };
+
+  async cleanup() {
+    const command = await new Promise((resolve) => {
+      process
+        .on("SIGINT", () => resolve("SIGINT"))
+        .on("SIGTERM", () => resolve("SIGTERM"));
+    });
+
+    this.log.log(`Got ${command} signal...`);
+  }
 
   enrichCommandWithIntent = (intent: Intent, command?: string): string => {
     if (!command) {
