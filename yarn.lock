@@ -52,10 +52,10 @@
   resolved "https://registry.yarnpkg.com/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-14.2.3.tgz#2be4e39ee25bfbd85be78eea17c0e7751dc4323c"
   integrity sha512-Q1/zm43RWynxrO7lW4ehciQVj+5ePBhOK+/K2P7pLFX3JaJ/IZVC69SHidrmZSOkqz7ECIOhhy7XhAFG4JYyHA==
 
-"@scaffoldly/awslambda-bootstrap@^1.0.16":
-  version "1.0.16"
-  resolved "https://registry.yarnpkg.com/@scaffoldly/awslambda-bootstrap/-/awslambda-bootstrap-1.0.16.tgz#bb81bd7ff82ef68cdc87c279ff86b3eca985c0e4"
-  integrity sha512-u0o/JPmz5Gh0iGnT8VRGdC90+f56GY8vwNR0CCpyjGLKNHuXqYBPlrW8XnoCPiFiziYYVUbY7NF16AQ4aq0Rpg==
+"@scaffoldly/awslambda-bootstrap@^1.0.17":
+  version "1.0.17"
+  resolved "https://registry.yarnpkg.com/@scaffoldly/awslambda-bootstrap/-/awslambda-bootstrap-1.0.17.tgz#b50be269a125faa2d6e76b4b12dddb6832012032"
+  integrity sha512-aUU6K6ibpK6lMWQAW9K4bJSGzl9AzHquWXI80juj1tse1B+2gs4+GGrUrkDASo71Zr6e2SVq3sYikafMO7W9kw==
   dependencies:
     "@types/aws-lambda" "^8.10.138"
     "@types/node" "18"
