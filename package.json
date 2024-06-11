@@ -1,6 +1,6 @@
 {
   "name": "serverless-next",
-  "version": "1.0.4-10",
+  "version": "1.0.4-11",
   "engines": {
     "node": ">=18"
   },
