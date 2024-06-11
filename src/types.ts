@@ -5,6 +5,31 @@ export type PluginConfig = {
   };
 };
 
+type ServerlessCustom = {
+  next?: PluginConfig;
+  "serverless-offline"?: {
+    useDocker?: boolean;
+    location?: string;
+  };
+};
+
+export type Service = {
+  service: string;
+  custom?: ServerlessCustom;
+  provider?: {
+    stage: string;
+    environment?: { [key: string]: string };
+    ecr?: ServiceProviderEcr;
+  };
+  functions?: {
+    next?: ServerlessFunction;
+  };
+};
+
+export type ServiceProviderEcr = {
+  images?: { [key: string]: { path?: string; file?: string } };
+};
+
 export type ServerlessFunctionImage = {
   name?: string;
   command?: string[] | string;

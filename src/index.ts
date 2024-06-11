@@ -2,40 +2,23 @@ import "path";
 import { exit } from "process";
 import { endpointSpawn } from "@scaffoldly/awslambda-bootstrap";
 import { ChildProcess } from "child_process";
-import { PluginConfig, ServerlessFunction } from "./types";
-import { defaultNextFunctionImageCommand } from "./defaults";
+import { PluginConfig, Service } from "./types";
+import {
+  defaultNextFunctionImage,
+  defaultNextFunctionImageCommand,
+} from "./defaults";
 
 type PluginName = "next";
 const PLUGIN_NAME: PluginName = "next";
 
 type Intent = "serve" | "develop";
 
-type ServerlessCustom = {
-  next?: PluginConfig;
-  "serverless-offline"?: {
-    useDocker?: boolean;
-    location?: string;
-  };
-};
-
-type ServerlessService = {
-  service: string;
-  custom?: ServerlessCustom;
-  provider: {
-    stage: string;
-    environment?: { [key: string]: string };
-  };
-  functions?: {
-    next?: ServerlessFunction;
-  };
-};
-
 type ServerlessConfig = {
   servicePath: string;
 };
 
 type Serverless = {
-  service: ServerlessService;
+  service: Service;
   pluginManager: {
     spawn: (command: string) => Promise<void>;
     hooks?: {
@@ -122,7 +105,7 @@ class ServerlessNext {
   pluginConfig: PluginConfig;
 
   childProcess?: ChildProcess;
-  childProcessCommand?: string[] | string;
+  childProcessCommand?: string;
 
   hooks?: Hooks;
   commands?: Commands;
@@ -139,8 +122,11 @@ class ServerlessNext {
 
     this.hooks = this.setupHooks();
 
-    this.childProcessCommand =
-      this.serverless.service.functions?.next?.image?.command;
+    this.childProcessCommand = Array.isArray(
+      this.serverless.service.functions?.next?.image?.command
+    )
+      ? this.serverless.service.functions?.next?.image?.command.join(" ")
+      : this.serverless.service.functions?.next?.image?.command;
 
     this.commands = {
       [`${PLUGIN_NAME}`]: {
@@ -246,34 +232,29 @@ class ServerlessNext {
     return hooks;
   };
 
-  enrichCommandWithIntent = (
-    intent: Intent,
-    command?: string | string[]
-  ): string[] => {
-    if (!command || !command.length) {
+  enrichCommandWithIntent = (intent: Intent, command?: string): string => {
+    if (!command) {
       command = defaultNextFunctionImageCommand(this.pluginConfig);
     }
 
-    if (typeof command === "string") {
-      command = command.split(" ");
-    }
-
-    if (!command[0].startsWith("next")) {
+    if (!command.startsWith("next")) {
       throw new Error("Image command must start with `next`");
     }
 
-    if (command[0].startsWith("next@")) {
+    if (command.startsWith("next@")) {
       if (intent === "develop") {
-        command[0] = command[0].replace("next@", "next dev@");
+        command = command.replace("next@", "next dev@");
+      } else if (intent === "serve") {
+        command = command.replace("next@", "next start@");
       } else {
-        command[0] = command[0].replace("next@", "next start@");
+        throw new Error(`Unknown intent: ${intent}`);
       }
     }
 
     return command;
   };
 
-  setHandlerIntent = (intent: Intent) => {
+  setHandlerIntent = (intent: Intent): string => {
     const { next } = this.serverless.service.functions || {};
     if (!next) {
       throw new Error(
@@ -281,21 +262,23 @@ class ServerlessNext {
       );
     }
 
-    if (intent === "serve" || (intent === "develop" && this.useDocker)) {
-      delete next.handler;
-      return;
-    }
-
-    let command = this.enrichCommandWithIntent(
+    const command = this.enrichCommandWithIntent(
       intent,
       this.childProcessCommand
     );
-    next.handler = command[0].split("@").slice(1).join("@");
 
-    return this.setImageIntent(intent);
+    if (intent === "serve") {
+      delete next.handler;
+      return command;
+    }
+
+    next.handler = command;
+    this.setImageIntent(intent, command);
+
+    return command;
   };
 
-  setImageIntent = (intent: Intent): string => {
+  setImageIntent = (intent: Intent, command: string) => {
     const { next } = this.serverless.service.functions || {};
     if (!next) {
       throw new Error(
@@ -303,23 +286,16 @@ class ServerlessNext {
       );
     }
 
-    const { image } = next;
-    if (!image) {
-      throw new Error(
-        `Unable to find an image configuration for the \`next\` function.`
-      );
-    }
-
-    const { command } = image;
-
-    if (intent === "develop" && !this.useDocker) {
+    if (intent === "develop") {
       delete next.image;
-      return this.enrichCommandWithIntent(intent, command)[0];
+      return;
     }
 
-    image.command = this.enrichCommandWithIntent(intent, command);
+    next.image =
+      next.image ||
+      defaultNextFunctionImage(this.serverless.service, this.pluginConfig);
 
-    return image.command[0];
+    next.image.command = this.enrichCommandWithIntent(intent, command);
   };
 
   build = async (): Promise<void> => {
@@ -358,10 +334,6 @@ class ServerlessNext {
     }
 
     const spawnCommand = this.setHandlerIntent("develop");
-
-    if (!spawnCommand) {
-      throw new Error("Unable to create spawn command");
-    }
 
     const { childProcess } = await endpointSpawn(
       spawnCommand,
