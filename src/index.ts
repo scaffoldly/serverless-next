@@ -322,10 +322,9 @@ class ServerlessNext {
       next.image ||
       defaultNextFunctionImage(this.serverless.service, this.pluginConfig);
 
-    next.image.command = this.enrichCommandWithIntent(
-      intent,
-      next.image?.command
-    );
+    next.image.command = [
+      this.enrichCommandWithIntent(intent, next.image?.command),
+    ];
   };
 
   build = async (): Promise<void> => {
