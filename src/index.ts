@@ -272,7 +272,7 @@ class ServerlessNext {
 
     if (command.startsWith("next@")) {
       if (intent === "develop") {
-        command = command.replace("next@", "next dev@");
+        command = command.replace("next@", "next dev --turbo@");
       } else if (intent === "serve") {
         command = command.replace("next@", "next start@");
       } else {
