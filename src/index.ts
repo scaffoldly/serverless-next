@@ -284,14 +284,8 @@ class ServerlessNext {
       );
     }
 
-    const command = this.enrichCommandWithIntent(
-      intent,
-      this.childProcessCommand
-    );
-
     if (intent === "serve") {
       delete next.handler;
-      return;
     }
 
     if (intent === "develop") {
@@ -301,10 +295,10 @@ class ServerlessNext {
       next.handler = endpoint.toString();
     }
 
-    this.setImageIntent(intent, command);
+    this.setImageIntent(intent);
   };
 
-  setImageIntent = (intent: Intent, command: string) => {
+  setImageIntent = (intent: Intent) => {
     const { next } = this.serverless.service.functions || {};
     if (!next) {
       throw new Error(
@@ -321,7 +315,10 @@ class ServerlessNext {
       next.image ||
       defaultNextFunctionImage(this.serverless.service, this.pluginConfig);
 
-    next.image.command = this.enrichCommandWithIntent(intent, command);
+    next.image.command = this.enrichCommandWithIntent(
+      intent,
+      this.childProcessCommand
+    );
   };
 
   build = async (): Promise<void> => {
