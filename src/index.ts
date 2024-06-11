@@ -104,7 +104,7 @@ class ServerlessNext {
   serverlessConfig: ServerlessConfig;
   pluginConfig: PluginConfig;
 
-  childProcessCommand?: string;
+  childProcessCommand: string;
 
   hooks?: Hooks;
   commands?: Commands;
@@ -121,11 +121,11 @@ class ServerlessNext {
 
     this.hooks = this.setupHooks();
 
-    this.childProcessCommand = Array.isArray(
-      this.serverless.service.functions?.next?.image?.command
-    )
-      ? this.serverless.service.functions?.next?.image?.command.join(" ")
-      : this.serverless.service.functions?.next?.image?.command;
+    this.childProcessCommand =
+      (Array.isArray(this.serverless.service.functions?.next?.image?.command)
+        ? this.serverless.service.functions?.next?.image?.command.join(" ")
+        : this.serverless.service.functions?.next?.image?.command) ||
+      defaultNextFunctionImageCommand(this.pluginConfig);
 
     this.commands = {
       [`${PLUGIN_NAME}`]: {
@@ -276,7 +276,7 @@ class ServerlessNext {
     return command;
   };
 
-  setHandlerIntent = (intent: Intent): string => {
+  setHandlerIntent = (intent: Intent, endpoint?: URL) => {
     const { next } = this.serverless.service.functions || {};
     if (!next) {
       throw new Error(
@@ -291,13 +291,17 @@ class ServerlessNext {
 
     if (intent === "serve") {
       delete next.handler;
-      return command;
+      return;
     }
 
-    next.handler = command;
-    this.setImageIntent(intent, command);
+    if (intent === "develop") {
+      if (!endpoint) {
+        throw new Error(`Endpoint is required for intent: ${intent}`);
+      }
+      next.handler = endpoint.toString();
+    }
 
-    return command;
+    this.setImageIntent(intent, command);
   };
 
   setImageIntent = (intent: Intent, command: string) => {
@@ -355,12 +359,12 @@ class ServerlessNext {
       );
     }
 
-    const spawnCommand = this.setHandlerIntent("develop");
-
-    const { childProcess } = await endpointSpawn(
-      spawnCommand,
+    const { childProcess, endpoint } = await endpointSpawn(
+      this.childProcessCommand,
       this.environment
     );
+
+    this.setHandlerIntent("develop", endpoint);
 
     this.childProcess = childProcess;
   };
