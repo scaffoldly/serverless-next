@@ -254,9 +254,16 @@ class ServerlessNext {
     this.log.log(`Got ${command} signal...`);
   }
 
-  enrichCommandWithIntent = (intent: Intent, command?: string): string => {
+  enrichCommandWithIntent = (
+    intent: Intent,
+    command?: string | string[]
+  ): string => {
     if (!command) {
       command = defaultNextFunctionImageCommand(this.pluginConfig);
+    }
+
+    if (Array.isArray(command)) {
+      command = command.join(" ");
     }
 
     if (!command.startsWith("next")) {
@@ -317,7 +324,7 @@ class ServerlessNext {
 
     next.image.command = this.enrichCommandWithIntent(
       intent,
-      this.childProcessCommand
+      next.image?.command
     );
   };
 
