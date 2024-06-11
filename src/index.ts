@@ -360,13 +360,12 @@ class ServerlessNext {
     }
 
     const { childProcess, endpoint } = await endpointSpawn(
-      this.childProcessCommand,
+      this.enrichCommandWithIntent("develop", this.childProcessCommand),
       this.environment
     );
 
-    this.setHandlerIntent("develop", endpoint);
-
     this.childProcess = childProcess;
+    this.setHandlerIntent("develop", endpoint);
   };
 }
 
