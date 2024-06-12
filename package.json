@@ -17,7 +17,7 @@
     "postinstall": "yarn build"
   },
   "dependencies": {
-    "@scaffoldly/awslambda-bootstrap": "^1.0.18",
+    "@scaffoldly/awslambda-bootstrap": "git+https://github.com/scaffoldly/awslambda-bootstrap.git#584627cc31f515e4343ab5406986da0929f3eef1",
     "@types/node": "16",
     "axios": "^1.7.2",
     "typescript": "5"

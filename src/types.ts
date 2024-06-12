@@ -35,9 +35,17 @@ export type ServerlessFunctionImage = {
   command?: string[] | string;
 };
 
+export type ServerlessFunctionEvent = {
+  websocket?: {
+    route?: "$connect" | "$disconnect" | "$default";
+    routeResponseSelectionExpression?: "$default";
+  };
+};
+
 export type ServerlessFunction = {
   name: string;
   handler?: string;
   image?: ServerlessFunctionImage;
   runtime?: string;
+  events?: ServerlessFunctionEvent[];
 };

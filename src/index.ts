@@ -179,6 +179,52 @@ class ServerlessNext {
     });
   }
 
+  setupWebsocket = (): string => {
+    const { next } = this.serverless.service.functions || {};
+    if (!next) {
+      throw new Error(
+        `Unable to find a function named \`next\` in serverless config.`
+      );
+    }
+
+    const { events } = next;
+    if (!events) {
+      throw new Error(
+        `No events found for function \`next\` in serverless config.`
+      );
+    }
+
+    const websocket = events.find((event) => event.websocket);
+    if (websocket) {
+      throw new Error(
+        "Existing websocket event found for function `next` in serverless config."
+      );
+    }
+
+    events.push(
+      {
+        websocket: {
+          route: "$default",
+          routeResponseSelectionExpression: "$default",
+        },
+      },
+      {
+        websocket: {
+          route: "$connect",
+        },
+      },
+      {
+        websocket: {
+          route: "$disconnect",
+        },
+      }
+    );
+
+    next.events = events;
+
+    return "_next/*";
+  };
+
   setupHooks = () => {
     const hooks: Hooks = {
       initialize: async () => {},
@@ -355,16 +401,11 @@ class ServerlessNext {
       throw new Error("Not implemented: useDocker");
     }
 
-    const { next } = this.serverless.service.functions || {};
-    if (!next) {
-      throw new Error(
-        `Unable to find a function named \`next\` in serverless config.`
-      );
-    }
+    const websocketRoute = this.setupWebsocket();
 
     const { childProcess, endpoint } = await endpointSpawn(
       this.enrichCommandWithIntent("develop", this.childProcessCommand),
-      this.environment
+      { ...this.environment, _WEBSOCKET_ROUTE: websocketRoute }
     );
 
     this.childProcess = childProcess;
